@@ -1,4 +1,5 @@
-﻿using EMarket.ApplicationCore.Entities;
+﻿using EMarket.ApplicationCore.Constants;
+using EMarket.ApplicationCore.Entities;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
@@ -10,35 +11,66 @@ namespace EMarket.Infrastructure.Data
 {
    public class ApplicationDbContextSeed
     {
-        public static void Seed(ApplicationDbContext context)
+        public static void SeedProductsAndCategories(ApplicationDbContext context)
         {
             if (!context.Categories.Any())
             {
-                context.Categories.Add(new Category { CategoryName = "Ayakkabı" });
-                context.Categories.Add(new Category { CategoryName = "Giysi" });
+                context.Categories.AddRange(Categories());
                 context.SaveChanges();
             }
         }
-        public static async Task SeedUsersAsync(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
+        public static async Task SeedUsersAndRolesAsync(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
         {
-            if (!await roleManager.RoleExistsAsync("admin"))//database sorgusu gelniceye kadar if in çalışmasını engeller
+            if (!await roleManager.RoleExistsAsync(AuthorizationConstants.Roles.ADMINISTRATOR))//database sorgusu gelniceye kadar if in çalışmasını engeller
             {
-                await roleManager.CreateAsync(new IdentityRole("admin"));
+                await roleManager.CreateAsync(new IdentityRole(AuthorizationConstants.Roles.ADMINISTRATOR));//rol tanımladık
             }
+
             var adminUserName = "admin@mail.com";
             if (!userManager.Users.Any(x => x.UserName == adminUserName))
             {
                 await userManager.CreateAsync(new ApplicationUser
                 {
-
                     UserName = adminUserName,
                     Email = adminUserName
-                },"Password1.");
+                }, AuthorizationConstants.DEFAULT_PASSWORD);
 
                 var adminUser = await userManager.FindByNameAsync(adminUserName);
 
-                await userManager.AddToRoleAsync(adminUser, "admin");
+                await userManager.AddToRoleAsync(adminUser, AuthorizationConstants.Roles.ADMINISTRATOR);
             }
+        }
+        private static readonly Random rnd = new Random();
+        public static List<Category> Categories(int count = 5, int productCountPerCategory = 99)
+        {
+            var categories = new List<Category>();
+            var pid = 1;
+
+            for (int i = 1; i <= count; i++)
+            {
+                var category = new Category
+                {
+                    CategoryName = "Category " + i,
+                    Products = new List<Product>()
+                };
+
+                for (int j = 0; j < productCountPerCategory; j++)
+                {
+                    category.Products.Add(
+                        new Product
+                        {
+                            CategoryId = i,
+                            ProductName = "Product " + pid,
+                            UnitPrice = rnd.Next(1, 11) * 10.00m
+                        }
+                    );
+                    pid++;
+                }
+
+                categories.Add(category);
+            }
+
+            return categories;
         }
     }
 }
